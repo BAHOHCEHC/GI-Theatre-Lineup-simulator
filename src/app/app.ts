@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal, viewChild } from '@
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { LoginModal } from '@core/components/_index';
 import { AdminToken } from './core/services/admin-token';
+import { IpVisibilityService } from './core/services/ip-visibility.service';
 
 @Component({
   selector: 'app-root',
@@ -13,6 +14,7 @@ import { AdminToken } from './core/services/admin-token';
 export class App {
   protected readonly title = signal('gi-theatre-lineup-simulator');
   readonly adminToken = inject(AdminToken);
+  readonly ipVisibility = inject(IpVisibilityService);
   private readonly router = inject(Router);
   loginModal = viewChild(LoginModal);
 
