@@ -64,7 +64,7 @@
     </nav>
 
     <!-- Секція доступна лише для конкретної IP-адреси -->
-    @if (ipVisibility.isAuthorized()) {
+    <!-- @if (ipVisibility.isAuthorized()) { -->
       <div class="app-header__right">
         <!-- Кнопка логіну — тільки якщо токена НЕМАЄ -->
         @if (!adminToken.hasToken()) {
@@ -88,7 +88,7 @@
           </button>
         }
       </div>
-    }
+    <!-- } -->
   </div>
 </header>
 
