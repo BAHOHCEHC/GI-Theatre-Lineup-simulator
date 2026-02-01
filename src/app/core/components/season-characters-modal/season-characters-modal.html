@@ -11,11 +11,6 @@
         <h2 class="modal-title">{{ title }}</h2>
       </div>
     }
-    @if (type !== 'lineup') {
-      <div class="modal-header">
-        <h2 class="modal-title">{{ title }}</h2>
-      </div>
-    }
     @if (type === 'lineup') {
       <span class="title">{{ title }}</span>
     }
@@ -137,16 +132,16 @@
             >{{ selectionCount() }}</span
           >
           <span class="counter">/</span>
-          <span class="counter">{{ max }}</span>
+          <span class="counter">{{ effectiveMax() }}</span>
         </div>
         <div class="limit_wrapper">
           <span
             class="counter"
             [class.pulse]="isSaveDisabled()"
-            >{{ min }} min
+            >{{ effectiveMin() }} min
           </span>
           <span class="counter">/ </span>
-          <span class="counter"> {{ max }} max</span>
+          <span class="counter"> {{ effectiveMax() }} max</span>
         </div>
       }
 
