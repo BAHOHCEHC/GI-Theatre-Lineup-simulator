@@ -27,10 +27,14 @@ export class ActModesStore {
       const storedActs = await IndexedDbUtil.get<Act[]>('ActsData');
       if (storedActs) {
         this.acts.set(storedActs);
+        // Фонове завантаження зображень
+        this.processActImages(storedActs).then(processed => this.acts.set(processed));
       }
       const storedModes = await IndexedDbUtil.get<Mode[]>('ModesData');
       if (storedModes) {
         this.modes.set(storedModes);
+        // Фонове завантаження зображень
+        this.processModeImages(storedModes).then(processed => this.modes.set(processed));
       }
     } catch (e) {
       console.error('Failed to load acts/modes from IndexedDB', e);
@@ -46,16 +50,18 @@ export class ActModesStore {
       const processEnemies = async (enemies: any[]) => {
         return Promise.all(enemies.map(async (enemy) => {
           const e = { ...enemy };
+          const version = e.updatedAt;
+
           if (e.avatarUrl && !e.avatarUrl.startsWith('data:')) {
             try {
-              e.avatarUrl = await IndexedDbUtil.loadImageAndCache(e.avatarUrl, e.avatarUrl);
+              e.avatarUrl = await IndexedDbUtil.loadImage(e.avatarUrl, `enemy_avatar:${e.id}`, version);
             } catch (err) {
               console.error(`Failed to cache avatar for enemy ${e.name}`, err);
             }
           }
           if (e.element?.iconUrl && !e.element.iconUrl.startsWith('data:')) {
              try {
-               const newUrl = await IndexedDbUtil.loadImageAndCache(e.element.iconUrl, e.element.iconUrl);
+               const newUrl = await IndexedDbUtil.loadImage(e.element.iconUrl, `element:${e.element.name}`, 'v1');
                e.element = { ...e.element, iconUrl: newUrl };
              } catch (err) {
                console.error(`Failed to cache element for enemy ${e.name}`, err);
@@ -92,9 +98,10 @@ export class ActModesStore {
   }
 
   async setActs(acts: Act[]) {
+    await IndexedDbUtil.set('ActsData', acts);
+    this.acts.set(acts);
     const processed = await this.processActImages(acts);
     this.acts.set(processed);
-    this.saveToIndexedDb();
   }
 
   async addAct(act: Act) {
@@ -131,9 +138,10 @@ export class ActModesStore {
   }
 
   async setModes(modes: Mode[]) {
+    await IndexedDbUtil.set('ModesData', modes);
+    this.modes.set(modes);
     const processed = await this.processModeImages(modes);
     this.modes.set(processed);
-    this.saveToIndexedDb();
   }
 
   async addMode(mode: Mode) {

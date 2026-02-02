@@ -49,8 +49,12 @@ export class CharacterService {
   async getAllCharacters(): Promise<Character[]> {
     const snapshot = await getDocs(this.collectionRef);
     return snapshot.docs.map((doc) => {
-      const data = doc.data() as Omit<Character, 'id'>;
-      return { id: String(doc.id), ...data };
+      const data = doc.data() as any;
+      return {
+        id: String(doc.id),
+        ...data,
+        updatedAt: data.updatedAt?.toDate() || data.updatedAt
+      } as Character;
     });
   }
 }

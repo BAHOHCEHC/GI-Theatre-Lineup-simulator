@@ -93,7 +93,8 @@ export class TasksService {
       youtubeLink: data.youtubeLink,
       taskSeries: data.taskSeries,
       parts: data.parts,
-      finished: data.finished
+      finished: data.finished,
+      updatedAt: data.updatedAt
     };
   }
 
