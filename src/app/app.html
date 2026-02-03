@@ -63,29 +63,32 @@
       }
     </nav>
 
-    <div class="app-header__right">
-      <!-- Кнопка логіну — тільки якщо токена НЕМАЄ -->
-      @if (!adminToken.hasToken()) {
-        <button
-          (click)="onLoginClick()"
-          class="app-header__circle-button"
-          type="button"
-          aria-label="Login"
-        >
-          <!-- Іконка або аватарка — можеш додати SVG або img -->
-        </button>
-      } @else {
-        <!-- Якщо залогінений — можна додати аватар або логаут, але за завданням залишаємо порожньо або іконку -->
-        <button
-          (click)="onLogout()"
-          class="app-header__circle-button"
-          type="button"
-          aria-label="Logout"
-        >
-          <!-- Наприклад, іконка юзера або логаут -->
-        </button>
-      }
-    </div>
+    <!-- Секція доступна лише для конкретної IP-адреси -->
+    <!-- @if (ipVisibility.isAuthorized()) { -->
+      <div class="app-header__right">
+        <!-- Кнопка логіну — тільки якщо токена НЕМАЄ -->
+        @if (!adminToken.hasToken()) {
+          <button
+            (click)="onLoginClick()"
+            class="app-header__circle-button"
+            type="button"
+            aria-label="Login"
+          >
+            <!-- Іконка або аватарка — можеш додати SVG або img -->
+          </button>
+        } @else {
+          <!-- Якщо залогінений — можна додати аватар або логаут, але за завданням залишаємо порожньо або іконку -->
+          <button
+            (click)="onLogout()"
+            class="app-header__circle-button"
+            type="button"
+            aria-label="Logout"
+          >
+            <!-- Наприклад, іконка юзера або логаут -->
+          </button>
+        }
+      </div>
+    <!-- } -->
   </div>
 </header>
 

@@ -21,6 +21,7 @@ export class SeasonCharactersModal {
   // Dynamic limits
   @Input() public min: number = 0;
   @Input() public max: number = 0;
+  @Input() public mode: string = 'lineup';
 
   @Input() public allCharacters: Character[] = [];
 
@@ -59,6 +60,18 @@ export class SeasonCharactersModal {
     const selectionCount = this.currentSelection().size;
     // Затемнюємо всіх персонажів, якщо є хоча б один обраний
     return selectionCount > 0;
+  });
+
+  public effectiveMax = computed(() => {
+    if (this.mode === 'opening') return 6;
+    if (this.mode === 'special') return 4;
+    return this.max;
+  });
+
+  public effectiveMin = computed(() => {
+    if (this.mode === 'opening') return 6;
+    if (this.mode === 'special') return 4;
+    return this.min;
   });
 
   public filteredCharacters = computed(() => {
@@ -122,13 +135,19 @@ export class SeasonCharactersModal {
 
   public toggleCharacter(charId: string): void {
     const current = new Set(this.currentSelection());
+    const limit = this.effectiveMax();
+
     if (current.has(charId)) {
       current.delete(charId);
     } else {
-      if (current.size < this.max) {
+      // Check if limit applies
+      if (this.mode === 'season' || current.size < limit) {
         current.add(charId);
+      } else {
+        console.warn(`Cannot select character ${charId}: max limit of ${limit} reached for mode ${this.mode}.`);
       }
     }
+
     this.currentSelection.set(current);
   }
 

@@ -425,12 +425,13 @@
       [allCharacters]="availableCharacters()"
       [specialGuest]="specialGuestCharacters()"
       [startSelection]="usersCharacter()"
-      [type]="'lineup'"
       [title]="'Please select Alternate Cast'"
       [min]="activeMode()?.min_characters || 0"
       [max]="activeMode()?.max_characters || 0"
       (close)="closeModal()"
       (save)="onSaveAlternateCast($event)"
+      [type]="'lineup'"
+      [mode]="'lineup'"
     ></app-season-characters-modal>
   }
 </section>

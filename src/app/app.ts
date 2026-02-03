@@ -3,6 +3,7 @@ import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/rou
 import { LoginModal } from '@core/components/_index';
 import { AdminToken } from './core/services/admin-token';
 import { SwUpdate } from '@angular/service-worker';
+import { IpVisibilityService } from './core/services/ip-visibility.service';
 
 @Component({
   selector: 'app-root',
@@ -14,6 +15,7 @@ import { SwUpdate } from '@angular/service-worker';
 export class App implements OnInit {
   protected readonly title = signal('gi-theatre-lineup-simulator');
   readonly adminToken = inject(AdminToken);
+  readonly ipVisibility = inject(IpVisibilityService);
   private readonly router = inject(Router);
   private readonly swUpdate = inject(SwUpdate);
   loginModal = viewChild(LoginModal);
