@@ -11,7 +11,8 @@ import {
   where,
   orderBy,
   writeBatch,
-  setDoc
+  setDoc,
+  onSnapshot
 } from '@angular/fire/firestore';
 import {
   Region,
@@ -32,6 +33,24 @@ export class TasksService {
   // Public readonly signals
   public regions = this._regions.asReadonly();
   public tasks = this._tasks.asReadonly();
+
+  constructor() {
+    this.subscribeToData();
+  }
+
+  private subscribeToData() {
+    const regionsRef = collection(this.firestore, 'regions');
+    onSnapshot(query(regionsRef, orderBy('createdAt', 'desc')), (snapshot) => {
+        const regions = snapshot.docs.map(doc => this.convertToRegion(doc)).reverse();
+        this._regions.set(regions);
+    });
+
+    const tasksRef = collection(this.firestore, 'region_tasks');
+    onSnapshot(query(tasksRef, orderBy('createdAt', 'desc')), (snapshot) => {
+        const tasks = snapshot.docs.map(doc => this.convertToTaks(doc));
+        this._tasks.set(tasks);
+    });
+  }
 
 
   // ========== LOAD ALL DATA ==========
@@ -93,7 +112,8 @@ export class TasksService {
       youtubeLink: data.youtubeLink,
       taskSeries: data.taskSeries,
       parts: data.parts,
-      finished: data.finished
+      finished: data.finished,
+      updatedAt: data.updatedAt
     };
   }
 

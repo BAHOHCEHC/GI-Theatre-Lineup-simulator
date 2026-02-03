@@ -10,7 +10,8 @@ import {
   query,
   where,
   orderBy,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from '@angular/fire/firestore';
 import {
   Enemy,
@@ -32,6 +33,22 @@ export class EnemiesService {
   // Public readonly signals
   public categories = this._categories.asReadonly();
   public enemies = this._enemies.asReadonly();
+
+  constructor() {
+    this.subscribeToData();
+  }
+
+  private subscribeToData() {
+    const categoriesRef = collection(this.firestore, 'categories');
+    onSnapshot(query(categoriesRef, orderBy('createdAt', 'desc')), (snapshot) => {
+      this._categories.set(snapshot.docs.map(d => this.convertToCategory(d)));
+    });
+
+    const enemiesRef = collection(this.firestore, 'enemies');
+    onSnapshot(query(enemiesRef, orderBy('createdAt', 'desc')), (snapshot) => {
+      this._enemies.set(snapshot.docs.map(d => this.convertToEnemy(d)));
+    });
+  }
 
   // Helper methods to convert Firestore documents
   private convertToCategory(doc: any): EnemyCategory {

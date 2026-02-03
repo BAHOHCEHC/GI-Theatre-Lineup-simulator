@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import {
   Firestore,
   collection,
@@ -13,7 +13,9 @@ import {
   updateDoc,
   doc,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  onSnapshot,
+  orderBy
 } from '@angular/fire/firestore';
 import { Act, Fight_type, Mode, Season_details } from '../../../models/models';
 
@@ -22,9 +24,32 @@ import { Act, Fight_type, Mode, Season_details } from '../../../models/models';
 })
 export class ActModsService {
   private actsCollection: CollectionReference<DocumentData>;
+  private modesCollection: CollectionReference<DocumentData>;
+
+  public acts = signal<Act[]>([]);
+  public modes = signal<Mode[]>([]);
 
   constructor(private firestore: Firestore) {
     this.actsCollection = collection(this.firestore, 'acts');
+    this.modesCollection = collection(this.firestore, 'modes');
+    this.subscribeToData();
+  }
+
+  private subscribeToData() {
+    // Listen for Acts
+    onSnapshot(this.actsCollection, (snapshot) => {
+      const acts = snapshot.docs.map(doc => this.convertToAct(doc));
+      this.acts.set(acts);
+    });
+
+    // Listen for Modes
+    onSnapshot(this.modesCollection, (snapshot) => {
+      const modes = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return { id: doc.id, ...data } as Mode;
+      });
+      this.modes.set(modes);
+    });
   }
 
   async createAct(act: Act): Promise<void> {

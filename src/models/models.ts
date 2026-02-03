@@ -41,6 +41,7 @@ export interface Character {
   energy: number;
   active?: boolean;
   newIndex?: TimedValue;
+  updatedAt?: string | number | Date;
 }
 
 export interface Enemy {
@@ -198,6 +199,7 @@ export interface Region_task {
   taskSeries?: boolean;
   parts?: Part[];
   finished?: boolean;
+  updatedAt?: string | number | Date;
 }
 
 export interface Part {

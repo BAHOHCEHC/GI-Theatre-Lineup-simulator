@@ -7,18 +7,36 @@ import {
   doc,
   updateDoc,
   getDocs,
+  onSnapshot,
   CollectionReference,
   DocumentData,
 } from '@angular/fire/firestore';
 import { Character } from '@models/models';
+import { signal } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class CharacterService {
   private firestore = inject(Firestore);
+  public characters = signal<Character[]>([]);
   private collectionRef: CollectionReference<DocumentData, DocumentData>;
 
   constructor() {
     this.collectionRef = collection(this.firestore, 'characters');
+    this.subscribeToCharacters();
+  }
+
+  private subscribeToCharacters() {
+    onSnapshot(this.collectionRef, (snapshot) => {
+      const chars = snapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        return {
+          id: String(doc.id),
+          ...data,
+          updatedAt: data.updatedAt?.toDate() || data.updatedAt
+        } as Character;
+      });
+      this.characters.set(chars);
+    });
   }
 
   // /** Створити персонажа */
@@ -49,8 +67,12 @@ export class CharacterService {
   async getAllCharacters(): Promise<Character[]> {
     const snapshot = await getDocs(this.collectionRef);
     return snapshot.docs.map((doc) => {
-      const data = doc.data() as Omit<Character, 'id'>;
-      return { id: String(doc.id), ...data };
+      const data = doc.data() as any;
+      return {
+        id: String(doc.id),
+        ...data,
+        updatedAt: data.updatedAt?.toDate() || data.updatedAt
+      } as Character;
     });
   }
 }

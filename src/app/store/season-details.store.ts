@@ -5,6 +5,7 @@ import { SeasonService } from '@shared/services/_index';
 @Injectable({ providedIn: 'root' })
 export class SeasonDetailsStore {
   private seasonService = inject(SeasonService);
+  private _isRefreshing = false;
 
   readonly seasonDetails = signal<Season_details | null>(null);
 
@@ -12,6 +13,16 @@ export class SeasonDetailsStore {
 
   constructor() {
     this.loadFromLocalStorage();
+
+    // Слухаємо реальний час з сервісу
+    effect(() => {
+      const liveData = this.seasonService.seasonDetails();
+      if (liveData && !this._isRefreshing) {
+        // Ми не можемо просто завантажити liveData, бо в сервісі акти не змержені
+        // тому запускаємо refreshDetails при зміні даних на сервері
+        this.refreshDetails();
+      }
+    });
 
     // Auto-save on change
     effect(() => {
@@ -26,15 +37,17 @@ export class SeasonDetailsStore {
   }
 
   async loadDetailsIfNeeded() {
-    if (this.seasonDetails()) {
-      return;
-    }
+    // Показати кеш відразу (вже завантажений в constructor), 
+    // але ЗАВЖДИ оновити з сервера у фоні
     await this.refreshDetails();
   }
 
   async refreshDetails() {
-    const details = await this.seasonService.loadSeasonDetails();
-    const allActs = await this.seasonService.getAllActs();
+    if (this._isRefreshing) return;
+    this._isRefreshing = true;
+    try {
+      const details = await this.seasonService.loadSeasonDetails();
+      const allActs = await this.seasonService.getAllActs();
 
     let finalDetails: Season_details;
 
@@ -61,6 +74,11 @@ export class SeasonDetailsStore {
     }
 
     this.seasonDetails.set(finalDetails);
+    this._isRefreshing = false;
+    } catch (e) {
+      console.error('Failed to refresh details', e);
+      this._isRefreshing = false;
+    }
   }
 
   // --- Persistence ---

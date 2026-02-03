@@ -1,6 +1,8 @@
-import { signal, computed, Injectable } from '@angular/core';
+import { signal, computed, Injectable, effect, inject } from '@angular/core';
 import { Character, ElementTypeName } from '@models/models';
 import { IndexedDbUtil } from '@utils/indexed-db';
+import { CharacterService } from '@shared/services/_index';
+import { sortCharacters } from '@utils/sorting-characters';
 
 @Injectable({
   providedIn: 'root',
@@ -28,9 +30,30 @@ export class CharacterStore {
     return list.filter((c) => c.element && elements.has(c.element.name));
   });
 
+  private characterService = inject(CharacterService);
+  private _pendingSelectedIds: string[] = [];
+  private _isProcessing = false;
+
   constructor() {
     this.loadFromLocalStorage();
     this.loadAllCharactersFromIndexedDb();
+
+    // Listen for live character updates from Firestore
+    effect(() => {
+      const liveChars = this.characterService.characters();
+      if (liveChars.length > 0 && !this._isProcessing) {
+        this._isProcessing = true;
+        // Ми не просто сетаємо, а запускаємо обробку картинок у фоні
+        this.processCharacterImages(liveChars).then(processed => {
+           this.allCharacters.set(sortCharacters(processed));
+           this.updateSelectedCharactersFromAll(processed);
+           this._isProcessing = false;
+        }).catch(() => {
+           this._isProcessing = false;
+        });
+      }
+    });
+
     // Periodically cleanup cache
     this.cleanupCache();
   }
@@ -49,11 +72,12 @@ export class CharacterStore {
   private async processCharacterImages(chars: Character[]): Promise<Character[]> {
     const processed = await Promise.all(chars.map(async (char) => {
       const c = { ...char };
+      const version = c.updatedAt;
 
       // Avatar
       if (c.avatarUrl && !c.avatarUrl.startsWith('data:')) {
          try {
-           c.avatarUrl = await IndexedDbUtil.loadImageAndCache(c.avatarUrl, c.avatarUrl);
+           c.avatarUrl = await IndexedDbUtil.loadImage(c.avatarUrl, `avatar:${c.id}`, version);
          } catch (e) {
            console.error(`Failed to cache avatar for ${c.name}`, e);
          }
@@ -62,7 +86,7 @@ export class CharacterStore {
       // Element Icon
       if (c.element?.iconUrl && !c.element.iconUrl.startsWith('data:')) {
         try {
-           const newUrl = await IndexedDbUtil.loadImageAndCache(c.element.iconUrl, c.element.iconUrl);
+           const newUrl = await IndexedDbUtil.loadImage(c.element.iconUrl, `element:${c.element.name}`, 'v1');
            c.element = { ...c.element, iconUrl: newUrl };
         } catch (e) {
              console.error(`Failed to cache element icon for ${c.name}`, e);
@@ -72,7 +96,7 @@ export class CharacterStore {
        // Rarity BG
       if (c.rarity?.bgUrl && !c.rarity.bgUrl.startsWith('data:')) {
         try {
-           const newUrl = await IndexedDbUtil.loadImageAndCache(c.rarity.bgUrl, c.rarity.bgUrl);
+           const newUrl = await IndexedDbUtil.loadImage(c.rarity.bgUrl, `rarity:${c.rarity.name}`, 'v1');
            c.rarity = { ...c.rarity, bgUrl: newUrl };
         } catch (e) {
              console.error(`Failed to cache rarity bg for ${c.name}`, e);
@@ -99,8 +123,12 @@ export class CharacterStore {
       const chars = await IndexedDbUtil.get<Character[]>('AllCharacters');
       if (chars && Array.isArray(chars)) {
         this.allCharacters.set(chars);
-        // Гидрация выбранных персонажей, если они были загружены ранее как IDs
+        // Гидрация выбранных персонажей
         this.rehydrateSelectedCharacters(chars);
+        
+        // Оптимізація: фонове завантаження та кешування зображень
+        const processed = await this.processCharacterImages(chars);
+        this.allCharacters.set(processed);
       }
     } catch (e) {
       console.error('Failed to load all characters from IndexedDB', e);
@@ -153,15 +181,30 @@ export class CharacterStore {
     }
   }
 
-  private _pendingSelectedIds: string[] = [];
+  /** Оновлює список обраних персонажів на основі оновлених даних з повного списку */
+  private updateSelectedCharactersFromAll(allChars: Character[]) {
+    const currentSelected = this.selectedCharacters();
+    if (currentSelected.length === 0) return;
+
+    const allMap = new Map(allChars.map(c => [c.id, c]));
+    const updatedSelected = currentSelected
+      .map(s => allMap.get(s.id))
+      .filter((s): s is Character => !!s);
+
+    this.selectedCharacters.set(updatedSelected);
+  }
 
   async setCharacters(chars: Character[]) {
-    // Cache images before setting
+    // Зберігаємо сирі дані (без base64), щоб уникнути дублювання в IndexedDB
+    await IndexedDbUtil.set('AllCharacters', chars);
+    
+    // Встановлюємо початкові дані
+    this.allCharacters.set(chars);
+    this.rehydrateSelectedCharacters(chars);
+
+    // В фоні кешуємо зображення
     const processed = await this.processCharacterImages(chars);
     this.allCharacters.set(processed);
-    this.saveAllCharactersToIndexedDb();
-    // Rehydrate if we have pending IDs
-    this.rehydrateSelectedCharacters(processed);
   }
 
   toggleElement(type: ElementTypeName) {

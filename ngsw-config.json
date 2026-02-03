@@ -4,13 +4,19 @@
 
   "navigationUrls": [
     "/**",
-    "!/**/*.*"
+    "!/**/*.*",
+    "!/**/__/*",
+    "!/__/auth/**",
+    "!https://firebasestorage.googleapis.com/**",
+    "!https://firestore.googleapis.com/**",
+    "!https://*.firebaseio.com/**"
   ],
 
   "assetGroups": [
     {
       "name": "app",
-      "installMode": "prefetch",
+      "installMode": "lazy",
+      "updateMode": "lazy",
       "resources": {
         "files": [
           "/favicon.ico",
@@ -24,29 +30,12 @@
     {
       "name": "assets",
       "installMode": "lazy",
-      "updateMode": "prefetch",
+      "updateMode": "lazy",
       "resources": {
         "files": [
           "/assets/**",
           "/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|otf|ttf|woff|woff2)"
         ]
-      }
-    }
-  ],
-
-  "dataGroups": [
-    {
-      "name": "external-images",
-      "urls": [
-        "https://firebasestorage.googleapis.com/**",
-        "https://api-os-takumi-static.hoyoverse.com/**",
-        "https://static.wikia.nocookie.net/**"
-      ],
-      "cacheConfig": {
-        "strategy": "performance",
-        "maxSize": 100,
-        "maxAge": "30d",
-        "timeout": "10s"
       }
     }
   ]

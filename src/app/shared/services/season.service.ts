@@ -12,7 +12,8 @@ import {
   orderBy,
   writeBatch,
   setDoc,
-  getDoc
+  getDoc,
+  onSnapshot
 } from '@angular/fire/firestore';
 import { Act, Season_details } from '../../../models/models';
 
@@ -26,9 +27,22 @@ export class SeasonService {
 
   seasonDetails = signal<Season_details | null>(null);
 
-  constructor() { }
+  constructor() {
+    // Реальний час: підписуємось на зміни в колекції
+    this.subscribeToSeasonDetails();
+  }
+
+  private subscribeToSeasonDetails() {
+    onSnapshot(this.seasonCollection, (snapshot) => {
+      if (!snapshot.empty) {
+        const data = snapshot.docs[0].data() as Season_details;
+        this.seasonDetails.set(data);
+      }
+    });
+  }
 
   async loadSeasonDetails(): Promise<Season_details | null> {
+    // Прямий запит до сервера (ігноруючи локальний кеш) для надійності
     const querySnapshot = await getDocs(this.seasonCollection);
     if (!querySnapshot.empty) {
       const data = querySnapshot.docs[0].data() as Season_details;
