@@ -1,6 +1,8 @@
-import { signal, computed, Injectable } from '@angular/core';
+import { signal, computed, Injectable, effect, inject } from '@angular/core';
 import { Character, ElementTypeName } from '@models/models';
 import { IndexedDbUtil } from '@utils/indexed-db';
+import { CharacterService } from '@shared/services/_index';
+import { sortCharacters } from '@utils/sorting-characters';
 
 @Injectable({
   providedIn: 'root',
@@ -28,9 +30,30 @@ export class CharacterStore {
     return list.filter((c) => c.element && elements.has(c.element.name));
   });
 
+  private characterService = inject(CharacterService);
+  private _pendingSelectedIds: string[] = [];
+  private _isProcessing = false;
+
   constructor() {
     this.loadFromLocalStorage();
     this.loadAllCharactersFromIndexedDb();
+
+    // Listen for live character updates from Firestore
+    effect(() => {
+      const liveChars = this.characterService.characters();
+      if (liveChars.length > 0 && !this._isProcessing) {
+        this._isProcessing = true;
+        // Ми не просто сетаємо, а запускаємо обробку картинок у фоні
+        this.processCharacterImages(liveChars).then(processed => {
+           this.allCharacters.set(sortCharacters(processed));
+           this.updateSelectedCharactersFromAll(processed);
+           this._isProcessing = false;
+        }).catch(() => {
+           this._isProcessing = false;
+        });
+      }
+    });
+
     // Periodically cleanup cache
     this.cleanupCache();
   }
@@ -158,7 +181,18 @@ export class CharacterStore {
     }
   }
 
-  private _pendingSelectedIds: string[] = [];
+  /** Оновлює список обраних персонажів на основі оновлених даних з повного списку */
+  private updateSelectedCharactersFromAll(allChars: Character[]) {
+    const currentSelected = this.selectedCharacters();
+    if (currentSelected.length === 0) return;
+
+    const allMap = new Map(allChars.map(c => [c.id, c]));
+    const updatedSelected = currentSelected
+      .map(s => allMap.get(s.id))
+      .filter((s): s is Character => !!s);
+
+    this.selectedCharacters.set(updatedSelected);
+  }
 
   async setCharacters(chars: Character[]) {
     // Зберігаємо сирі дані (без base64), щоб уникнути дублювання в IndexedDB

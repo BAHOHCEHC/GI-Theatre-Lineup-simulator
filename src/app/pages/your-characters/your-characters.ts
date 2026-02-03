@@ -52,11 +52,10 @@ export class YourCharacters implements OnInit {
   async ngOnInit(): Promise<void> {
     this.isLoading.set(true);
 
-    // ✅ нова логіка: Firestore → Store
-    if (this.characterStore.allCharacters().length === 0) {
-      const characters = await this.characterService.getAllCharacters();
+    // ✅ Завжди оновлюємо дані з Firestore у фоні
+    this.characterService.getAllCharacters().then(characters => {
       this.characterStore.setCharacters(sortCharacters(characters));
-    }
+    });
 
     // localStorage — як і було
     this.characterStore.loadFromLocalStorage();

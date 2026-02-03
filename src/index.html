@@ -11,6 +11,63 @@
   <meta name="theme-color" content="#1976d2">
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script>
+    // Cleanup zombie Service Workers and Caches on local network/localhost
+    const isLocal = location.hostname === 'localhost' || 
+                   location.hostname === '127.0.0.1' || 
+                   location.hostname.startsWith('192.168.') || 
+                   location.hostname.startsWith('10.') || 
+                   location.hostname.startsWith('172.');
+    
+    if (isLocal) {
+      navigator.serviceWorker?.getRegistrations().then(registrations => {
+        for (let registration of registrations) {
+          registration.unregister();
+          console.log('SW: Unregistered zombie worker on:', location.hostname);
+        }
+      });
+      window.caches?.keys().then(keys => {
+        for (let key of keys) {
+          caches.delete(key);
+          console.log('SW: Cleared cache:', key);
+        }
+      });
+    }
+
+    // Force ONE-TIME reset for all production clients (v1.6)
+    const SW_VERSION = 'v1.6';
+    if (!isLocal && localStorage.getItem('SW_RESET_VERSION') !== SW_VERSION) {
+      navigator.serviceWorker?.getRegistrations().then(regs => {
+        for (let r of regs) {
+          r.unregister();
+          console.log('SW: Forced unregister performed');
+        }
+        
+        window.caches?.keys().then(keys => {
+          for (let k of keys) caches.delete(k);
+          console.log('SW: Caches cleared');
+        });
+
+        // Clear local/session storage to ensure clean state (except the version flag)
+        const currentToken = localStorage.getItem('AdminToken');
+        // localStorage.clear(); // We don't want to log out the user if possible
+        // Но ми очистимо старі метадані
+        for (let key in localStorage) {
+          if (key.startsWith('avatar:') || key.startsWith('element:') || key.startsWith('rarity:')) {
+            localStorage.removeItem(key);
+          }
+        }
+
+        localStorage.setItem('SW_RESET_VERSION', SW_VERSION);
+        if (currentToken) localStorage.setItem('AdminToken', currentToken);
+        
+        if (regs.length > 0) {
+          console.warn('SW: System reset successful, reloading...');
+          setTimeout(() => location.reload(), 500);
+        }
+      });
+    }
+  </script>
 </head>
 <body>
   <app-root></app-root>

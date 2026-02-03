@@ -155,10 +155,10 @@ export class LineupSimulator implements OnInit {
     // Init services
 
     // Load chars - Optimization: use store if available
-    if (this.characterStore.allCharacters().length === 0) {
-      const chars = await this.characterService.getAllCharacters();
-      this.characterStore.setCharacters(chars);
-    }
+    // Load chars - Always re-validate with server in background
+    this.characterService.getAllCharacters().then(chars => {
+       this.characterStore.setCharacters(chars);
+    });
     // Load modes
     const modes = await this.actModsService.getAllModes();
     this.modes.set(modes);

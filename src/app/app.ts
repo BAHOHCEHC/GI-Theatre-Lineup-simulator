@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, viewChild, OnInit } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { LoginModal } from '@core/components/_index';
 import { AdminToken } from './core/services/admin-token';
+import { SwUpdate } from '@angular/service-worker';
 
 @Component({
   selector: 'app-root',
@@ -10,11 +11,44 @@ import { AdminToken } from './core/services/admin-token';
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class App {
+export class App implements OnInit {
   protected readonly title = signal('gi-theatre-lineup-simulator');
   readonly adminToken = inject(AdminToken);
   private readonly router = inject(Router);
+  private readonly swUpdate = inject(SwUpdate);
   loginModal = viewChild(LoginModal);
+
+  ngOnInit() {
+    if (this.swUpdate.isEnabled) {
+      // Listen for ready-to-install updates
+      this.swUpdate.versionUpdates.subscribe(evt => {
+        console.log('SW Event:', evt.type); // Log all event types for debugging
+        
+        if (evt.type === 'VERSION_READY') {
+          console.log('SW: New version ready detection');
+          
+          const lastReload = Number(localStorage.getItem('SW_LAST_RELOAD') || 0);
+          const now = Date.now();
+          
+          if (now - lastReload > 60000) {
+            localStorage.setItem('SW_LAST_RELOAD', now.toString());
+            console.log('SW: Activating update and reloading...');
+            this.swUpdate.activateUpdate().then(() => {
+              window.location.reload();
+            });
+          } else {
+            console.warn('SW: Version ready, but reload throttled');
+          }
+        }
+      });
+
+      // Manual check ONLY ONCE after a 5-minute delay
+      // to ensure initial data sync is 100% finished
+      setTimeout(() => {
+        this.swUpdate.checkForUpdate().catch(() => {});
+      }, 300000);
+    }
+  }
 
   onLoginClick() {
     this.loginModal()?.open();

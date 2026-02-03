@@ -1,16 +1,55 @@
-import { signal, computed, Injectable } from '@angular/core';
+import { signal, computed, Injectable, inject, effect } from '@angular/core';
 import { Act, Mode } from '../../models/models';
 import { IndexedDbUtil } from '@utils/indexed-db';
+import { ActModsService } from '@shared/services/_index';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ActModesStore {
+  private actModsService = inject(ActModsService);
+  private _isProcessingActs = false;
+  private _isProcessingModes = false;
+
   /** ACTS */
   readonly acts = signal<Act[]>([]);
+  /** MODES */
+  readonly modes = signal<Mode[]>([]);
 
   constructor() {
     this.loadFromIndexedDb();
+
+    // Listen for live updates
+    effect(() => {
+      const liveActs = this.actModsService.acts();
+      if (liveActs.length > 0 && !this._isProcessingActs) {
+        this._isProcessingActs = true;
+        this.processActImages(liveActs).then(processed => {
+          this.acts.set(processed);
+          this._isProcessingActs = false;
+        }).catch(() => {
+          this._isProcessingActs = false;
+        });
+      }
+    });
+
+    effect(() => {
+      const liveModes = this.actModsService.modes();
+      if (liveModes.length > 0 && !this._isProcessingModes) {
+        this._isProcessingModes = true;
+        this.processModeImages(liveModes).then(processed => {
+          this.modes.set(processed);
+          this._isProcessingModes = false;
+        }).catch(() => {
+          this._isProcessingModes = false;
+        });
+      }
+    });
+
+    // Auto-persist to IDB
+    effect(() => {
+        this.saveToIndexedDb();
+    });
   }
 
   private async saveToIndexedDb() {
@@ -124,7 +163,6 @@ export class ActModesStore {
   }
 
   /** MODES */
-  readonly modes = signal<Mode[]>([]);
 
   /** Process modes to ensure their chambers (acts) have cached images */
   private async processModeImages(modes: Mode[]): Promise<Mode[]> {
