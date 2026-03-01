@@ -1,9 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EnemiesService } from '@shared/services/_index';
 import { EnemyEditorModal, ConfirmModal } from '@core/components/_index';
 import { Enemy, EnemyGroup, ModalType } from '@models/models';
-
 
 @Component({
   standalone: true,
@@ -36,7 +42,7 @@ export class EnemyEditor implements OnInit {
 
   // Derived state
   public activeCategory = computed(() =>
-    this.categories().find(c => c.id === this.activeCategoryId())
+    this.categories().find((c) => c.id === this.activeCategoryId()),
   );
 
   public hasCategories = computed(() => this.categories().length > 0);
@@ -121,7 +127,7 @@ export class EnemyEditor implements OnInit {
           elementName: data.element,
           avatarUrl: data.avatarUrl,
           categoryId: data.categoryId,
-          groupId: data.groupId
+          groupId: data.groupId,
         });
       }
 
@@ -139,12 +145,12 @@ export class EnemyEditor implements OnInit {
 
   // Edit Category
   public onEditCategory(catId: string): void {
-    const category = this.categories().find(c => c.id === catId);
+    const category = this.categories().find((c) => c.id === catId);
     if (category) {
       this.editorModalType.set('categories');
       this.editorModalData.set({
         id: category.id,
-        title: category.title
+        title: category.title,
       });
       this.isEditorModalOpen.set(true);
     }
@@ -155,7 +161,7 @@ export class EnemyEditor implements OnInit {
     this.editorModalData.set({
       id: group.id, // Include ID for update
       title: group.title,
-      categoryId: categoryId
+      categoryId: categoryId,
     });
     this.isEditorModalOpen.set(true);
   }

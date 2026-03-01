@@ -153,6 +153,9 @@
                     @if (act.enemy_options?.timer) {
                       <div class="act-options-info">{{ act.enemy_options?.timer }} sec</div>
                     }
+                    @if (act.enemy_options?.defeat) {
+                      <div class="act-options-info">Defeat {{ act.enemy_options?.defeat }}</div>
+                    }
                     <div class="enemies-container">
                       <!-- Arcana usually has 1 variation, 1 wave -->
                       @if (act.variations && act.variations[0]?.waves) {

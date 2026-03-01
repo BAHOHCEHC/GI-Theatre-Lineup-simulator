@@ -1,59 +1,72 @@
-# GiTheatreLineupSimulator
+# GI Theatre Lineup Simulator
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.9.
+## Про проект
+Цей проект являє собою симулятор складів (Lineup Simulator) для **Imaginarium Theater** у грі Genshin Impact. Додаток дозволяє користувачам планувати свої команди, керувати персонажами, відстежувати виконання завдань та налаштовувати сезонні події.
 
-## Development server
+Проект розроблений як **Single Page Application (SPA)** з використанням сучасних можливостей фреймворку **Angular** та хмарної платформи **Firebase**.
 
-To start a local development server, run:
+## Основні функції та Технології
 
+### Frontend (Angular 20+)
+- **Zoneless**: Використовується `provideZonelessChangeDetection()` для покращення продуктивності та відмови від `zone.js`.
+- **Signals**: Вся логіка стану та реактивності побудована на Angular Signals (`signal`, `computed`, `effect`).
+- **PWA (Progressive Web App)**: Додаток можна встановити як нативний на мобільні пристрої та ПК. Підтримується офлайн-режим та кешування ресурсів (налаштування в `ngsw-config.json`).
+- **Stand-alone Components**: Архітектура базується на stand-alone компонентах без використання NgModules.
+- **SCSS**: Використовується для стилізації компонентів.
+
+### Backend & Data (Firebase)
+- **Firebase Firestore**: База даних для зберігання інформації про персонажів, ворогів, сезони та завдання.
+- **Firebase Auth**: Автентифікація користувачів.
+- **Firebase Hosting**: Хостинг для деплою додатку.
+- **Локальне кешування**: Використовується `persistentLocalCache` для роботи з Firestore офлайн.
+- **IndexedDB**: Використовується для кешування зображень та великих обсягів даних на стороні клієнта.
+
+## Налаштування та Запуск
+
+### Передумови
+Для запуску проекту необхідно мати встановлений **Node.js** та **npm**.
+
+### Встановлення залежностей
+Запустіть команду в терміналі для встановлення всіх необхідних пакетів:
+```bash
+npm install
+```
+*Примітка: Якщо виникають конфлікти версій, спробуйте `npm install --force`.*
+
+### Запуск серверу розробки
+Для запуску локального серверу використовуйте Angular CLI:
 ```bash
 ng serve
 ```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
+або
 ```bash
-ng generate component component-name
+npm start
 ```
+Додаток буде доступний за адресою `http://localhost:4200/`. Додаток автоматично перезавантажиться при зміні вихідних файлів.
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
+### Створення Production білда
+Для створення оптимізованої версії для деплою:
 ```bash
 ng build
 ```
+ng build --configuration production
+для пперевірки сервіс воркера є локальний пакет сервера http 
+генеруєм спочатку більд після запускаємо аппку і дивимось чи працює SW
+http-server dist/Firebase_Promise_Signal_Zoneles_PWA_SPA/browser -p 8080
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
+### Деплой на Firebase 
 ```bash
-ng test
+ng build --configuration production
+firebase deploy
 ```
 
-## Running end-to-end tests
+Артефакти збірки будуть збережені в директорії `dist/`.
 
-For end-to-end (e2e) testing, run:
+## Конфігурація Firebase
+Налаштування підключення до Firebase знаходяться у файлі:
+`src/environments/environment.ts`
 
-```bash
-ng e2e
-```
+У цьому файлі міститься об'єкт `firebase` з ключами API, доменом авторизації та іншими параметрами проекту.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Автор
+**Іван Онищенко**

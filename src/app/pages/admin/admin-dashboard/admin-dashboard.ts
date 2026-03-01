@@ -17,10 +17,10 @@ export class AdminDashboard {
   // 🔥 reactive URL signal
   private currentUrl = toSignal(
     this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd),
-      map(() => this.router.url)
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.router.url),
     ),
-    { initialValue: this.router.url }
+    { initialValue: this.router.url },
   );
 
   // role-based

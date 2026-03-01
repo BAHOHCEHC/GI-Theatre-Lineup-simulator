@@ -21,21 +21,21 @@
         class="filters"
         [class.filters--dim-inactive]="shouldDimInactiveFilters()"
       >
-        @for (type of elementTypes; track type) {
+        @for (elementType of elementTypes; track elementType) {
           <button
             class="filter-button"
-            [class.filter-button--active]="activeElementFilters().has(type)"
+            [class.filter-button--active]="activeElementFilters().has(elementType)"
             [disabled]="
-              !activeElementFilters().has(type) &&
+              !activeElementFilters().has(elementType) &&
               shouldDimInactiveFilters() &&
               activeElementFilters().size >= elementTypes.length
             "
-            (click)="toggleElementFilter(type)"
+            (click)="toggleElementFilter(elementType)"
           >
             <img
               class="element-icon"
-              [src]="getElementIconPath(type)"
-              [alt]="type"
+              [src]="getElementIconPath(elementType)"
+              [alt]="elementType"
             />
           </button>
         }

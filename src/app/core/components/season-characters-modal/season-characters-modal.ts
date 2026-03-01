@@ -134,6 +134,8 @@ export class SeasonCharactersModal {
   }
 
   public toggleCharacter(charId: string): void {
+    console.log('toggleCharacter', charId);
+
     const current = new Set(this.currentSelection());
     const limit = this.effectiveMax();
 
