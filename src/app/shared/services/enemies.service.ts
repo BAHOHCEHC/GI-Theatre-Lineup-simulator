@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, Injector, runInInjectionContext } from '@angular/core';
 import {
   Firestore,
   collection,
@@ -25,6 +25,7 @@ import {
 })
 export class EnemiesService {
   private firestore = inject(Firestore);
+  private injector = inject(Injector);
 
   // State signals
   private _categories = signal<EnemyCategory[]>([]);
@@ -111,7 +112,7 @@ export class EnemiesService {
     try {
       const categoriesRef = collection(this.firestore, 'categories');
       const q = query(categoriesRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
 
       const categories = querySnapshot.docs.map(doc =>
         this.convertToCategory(doc)
@@ -164,7 +165,7 @@ export class EnemiesService {
       // 1. Get all groups for this category
       const groupsRef = collection(this.firestore, 'groups');
       const qGroups = query(groupsRef, where('categoryId', '==', categoryId));
-      const groupsSnapshot = await getDocs(qGroups);
+      const groupsSnapshot = await runInInjectionContext(this.injector, () => getDocs(qGroups));
 
       const batch = writeBatch(this.firestore);
 
@@ -180,7 +181,7 @@ export class EnemiesService {
         // Find enemies for this group
         const enemiesRef = collection(this.firestore, 'enemies');
         const qEnemies = query(enemiesRef, where('groupId', '==', groupDoc.id));
-        const enemiesSnapshot = await getDocs(qEnemies);
+        const enemiesSnapshot = await runInInjectionContext(this.injector, () => getDocs(qEnemies));
 
         // Delete enemies
         enemiesSnapshot.forEach(enemyDoc => {
@@ -205,7 +206,7 @@ export class EnemiesService {
     try {
       const groupsRef = collection(this.firestore, 'groups');
       const q = query(groupsRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
 
       const groups = querySnapshot.docs.map(doc =>
         this.convertToGroup(doc)
@@ -291,7 +292,7 @@ export class EnemiesService {
     try {
       const enemiesRef = collection(this.firestore, 'enemies');
       const q = query(enemiesRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
 
       const enemies = querySnapshot.docs.map(doc =>
         this.convertToEnemy(doc)
@@ -399,7 +400,7 @@ export class EnemiesService {
         orderBy('createdAt', 'asc')
       );
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
       return querySnapshot.docs.map(doc => this.convertToGroup(doc));
     } catch (error) {
       console.error('Error getting groups by category:', error);
@@ -416,7 +417,7 @@ export class EnemiesService {
         orderBy('createdAt', 'asc')
       );
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
       return querySnapshot.docs.map(doc => this.convertToEnemy(doc));
     } catch (error) {
       console.error('Error getting enemies by group:', error);

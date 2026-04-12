@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, Injector, runInInjectionContext } from '@angular/core';
 import {
   Firestore,
   collection,
@@ -25,6 +25,7 @@ import {
 
 export class TasksService {
   private firestore = inject(Firestore);
+  private injector = inject(Injector);
 
   // State signals
   private _regions = signal<Region[]>([]);
@@ -71,7 +72,7 @@ export class TasksService {
     try {
       const regionsRef = collection(this.firestore, 'regions');
       const q = query(regionsRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
 
       const regions = querySnapshot.docs.map(doc =>
         this.convertToRegion(doc)
@@ -89,7 +90,7 @@ export class TasksService {
     try {
       const groupsRef = collection(this.firestore, 'region_tasks');
       const q = query(groupsRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
 
       const region_tasks = querySnapshot.docs.map(doc =>
         this.convertToTaks(doc)
@@ -175,7 +176,7 @@ export class TasksService {
       // Delete all tasks in this region
       const tasksRef = collection(this.firestore, 'region_tasks');
       const q = query(tasksRef, where('categoryId', '==', id));
-      const snapshot = await getDocs(q);
+      const snapshot = await runInInjectionContext(this.injector, () => getDocs(q));
 
       snapshot.docs.forEach(doc => {
         batch.delete(doc.ref);

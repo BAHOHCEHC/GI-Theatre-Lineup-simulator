@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import {
   Firestore,
   collection,
@@ -17,6 +17,7 @@ import { signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class CharacterService {
   private firestore = inject(Firestore);
+  private injector = inject(Injector);
   public characters = signal<Character[]>([]);
   private collectionRef: CollectionReference<DocumentData, DocumentData>;
 
@@ -65,7 +66,7 @@ export class CharacterService {
 
   /** Отримати ВСІХ персонажів */
   async getAllCharacters(): Promise<Character[]> {
-    const snapshot = await getDocs(this.collectionRef);
+    const snapshot = await runInInjectionContext(this.injector, () => getDocs(this.collectionRef));
     return snapshot.docs.map((doc) => {
       const data = doc.data() as any;
       return {

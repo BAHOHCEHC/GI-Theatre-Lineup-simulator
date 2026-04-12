@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, Injector, runInInjectionContext } from '@angular/core';
 import {
   Firestore,
   collection,
@@ -28,6 +28,7 @@ export class ActModsService {
 
   public acts = signal<Act[]>([]);
   public modes = signal<Mode[]>([]);
+  private injector = inject(Injector);
 
   constructor(private firestore: Firestore) {
     this.actsCollection = collection(this.firestore, 'acts');
@@ -81,7 +82,7 @@ export class ActModsService {
 
   async getAllActs(): Promise<Act[]> {
     try {
-      const querySnapshot = await getDocs(this.actsCollection);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(this.actsCollection));
       const acts: Act[] = [];
 
       querySnapshot.forEach((doc) => {
@@ -118,7 +119,7 @@ export class ActModsService {
         where('type', '==', 'Arcana_fight')
       );
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
       return !querySnapshot.empty;
     } catch (error) {
       console.error('Помилка при перевірці Arcana акта:', error);
@@ -139,7 +140,7 @@ export class ActModsService {
         where('type', 'in', ['Boss_fight', 'Variation_fight'])
       );
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
       return !querySnapshot.empty;
 
     } catch (error) {
@@ -166,8 +167,8 @@ export class ActModsService {
       );
 
       const [bossSnapshot, variationSnapshot] = await Promise.all([
-        getDocs(bossQuery),
-        getDocs(variationQuery)
+        runInInjectionContext(this.injector, () => getDocs(bossQuery)),
+        runInInjectionContext(this.injector, () => getDocs(variationQuery))
       ]);
 
       return !bossSnapshot.empty || !variationSnapshot.empty;
@@ -193,7 +194,7 @@ export class ActModsService {
         )
       );
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
       return !querySnapshot.empty;
 
     } catch (error) {
@@ -249,7 +250,7 @@ export class ActModsService {
   async getActsByType(type: Fight_type): Promise<Act[]> {
     try {
       const q = query(this.actsCollection, where('type', '==', type));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
       const acts: Act[] = [];
 
       querySnapshot.forEach((doc) => {
@@ -269,7 +270,7 @@ export class ActModsService {
     try {
       // Отримуємо всі акти з заданим номером
       const q = query(this.actsCollection, where('name', '==', name));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
       const acts: Act[] = [];
 
       querySnapshot.forEach((doc) => {
@@ -347,7 +348,7 @@ export class ActModsService {
           where('name', '==', name),
           where('type', '==', 'Arcana_fight')
         );
-        const snapshot = await getDocs(q);
+        const snapshot = await runInInjectionContext(this.injector, () => getDocs(q));
         return snapshot.empty;
 
       } else {
@@ -357,7 +358,7 @@ export class ActModsService {
           where('name', '==', name),
           where('type', 'in', ['Boss_fight', 'Variation_fight'])
         );
-        const snapshot = await getDocs(q);
+        const snapshot = await runInInjectionContext(this.injector, () => getDocs(q));
         return snapshot.empty;
       }
 
@@ -449,11 +450,11 @@ export class ActModsService {
       const modesCollection = collection(this.firestore, 'modes');
       const { id: modeId, ...modeData } = mode;
 
-      await addDoc(modesCollection, {
+      await addDoc(modesCollection, firestoreSafe({
         ...modeData,
         createdAt: new Date(),
         updatedAt: new Date()
-      });
+      }));
 
     } catch (error) {
       console.error('Помилка при створенні режиму:', error);
@@ -465,7 +466,7 @@ export class ActModsService {
     try {
       const modesCollection = collection(this.firestore, 'modes');
       const q = query(modesCollection, where('name', '==', name));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
       return !querySnapshot.empty;
     } catch (error) {
       console.error('Помилка при перевірці режиму:', error);
@@ -476,7 +477,7 @@ export class ActModsService {
   async getAllModes(): Promise<Mode[]> {
     try {
       const modesCollection = collection(this.firestore, 'modes');
-      const querySnapshot = await getDocs(modesCollection);
+      const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(modesCollection));
       const modes: Mode[] = [];
 
       querySnapshot.forEach((doc) => {
@@ -488,7 +489,6 @@ export class ActModsService {
         } as Mode);
       });
 
-      return modes;
       return modes;
     } catch (error) {
       console.error('Помилка при отриманні режимів:', error);
@@ -510,10 +510,10 @@ export class ActModsService {
     try {
       const modeDoc = doc(this.firestore, 'modes', mode.id);
       const { id: modeId, ...modeData } = mode;
-      await updateDoc(modeDoc, {
+      await updateDoc(modeDoc, firestoreSafe({
         ...modeData,
         updatedAt: new Date()
-      });
+      }));
     } catch (error) {
       console.error('Помилка при оновленні режиму:', error);
       throw error;
@@ -560,5 +560,18 @@ export class ActModsService {
       console.error('Error updating modes by enemy options:', error);
       throw error;
     }
+  }
+}
+
+/**
+ * Ensures data is safe for Firestore by removing non-serializable properties
+ * and handling nested objects/arrays through JSON cycle.
+ */
+function firestoreSafe<T>(data: T): T {
+  try {
+    return JSON.parse(JSON.stringify(data));
+  } catch (error) {
+    console.error('Error serializing data for Firestore:', error);
+    return data;
   }
 }

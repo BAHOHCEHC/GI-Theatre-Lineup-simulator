@@ -227,7 +227,21 @@ export class ModeModal implements OnInit {
     }
 
     const selectedActIds = Array.from(this.selectedActs());
-    const selectedChambers = this.acts().filter(a => selectedActIds.includes(a.id));
+    const masterActs = this.acts();
+    
+    // Map selected IDs back to full Act objects from the master list
+    const selectedChambers = selectedActIds.map(id => {
+      const masterAct = masterActs.find(a => a.id === id);
+      if (!masterAct) return null;
+      
+      // Safety check: ensure variations are preserved
+      return {
+        ...masterAct,
+        variations: masterAct.variations || []
+      } as Act;
+    }).filter((a): a is Act => !!a);
+
+    console.log('--- FINAL CHAMBERS TO SAVE ---', selectedChambers);
 
     const modeData: Mode = {
       id: this.modeToEdit ? this.modeToEdit.id : generateUUID(),

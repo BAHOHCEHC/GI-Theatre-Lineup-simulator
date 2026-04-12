@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, Injector, runInInjectionContext } from '@angular/core';
 import {
   Firestore,
   collection,
@@ -22,6 +22,7 @@ import { Act, Season_details } from '../../../models/models';
 })
 export class SeasonService {
   private firestore = inject(Firestore);
+  private injector = inject(Injector);
   private seasonCollection = collection(this.firestore, 'season_details');
   private actsCollection = collection(this.firestore, 'acts');
 
@@ -43,7 +44,7 @@ export class SeasonService {
 
   async loadSeasonDetails(): Promise<Season_details | null> {
     // Прямий запит до сервера (ігноруючи локальний кеш) для надійності
-    const querySnapshot = await getDocs(this.seasonCollection);
+    const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(this.seasonCollection));
     if (!querySnapshot.empty) {
       const data = querySnapshot.docs[0].data() as Season_details;
       this.seasonDetails.set(data);
@@ -57,7 +58,7 @@ export class SeasonService {
     const payload = firestoreSafe(details);
 
     // 1. Отримуємо існуючі season_details
-    const querySnapshot = await getDocs(this.seasonCollection);
+    const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(this.seasonCollection));
 
     // 2. Перезапис або створення
     if (!querySnapshot.empty) {
@@ -98,10 +99,10 @@ export class SeasonService {
 async resetSeasonDetails(): Promise<void> {
   const batch = writeBatch(this.firestore);
 
-  const seasonSnapshot = await getDocs(this.seasonCollection);
+  const seasonSnapshot = await runInInjectionContext(this.injector, () => getDocs(this.seasonCollection));
   seasonSnapshot.docs.forEach(d => batch.delete(d.ref));
 
-  const actsSnapshot = await getDocs(this.actsCollection);
+  const actsSnapshot = await runInInjectionContext(this.injector, () => getDocs(this.actsCollection));
   actsSnapshot.docs.forEach(d => {
     batch.update(d.ref, {
       enemy_options: {},
@@ -118,7 +119,7 @@ async resetSeasonDetails(): Promise<void> {
   // Method to get all acts from the 'acts' collection to populate the editor initially if season_details is empty
   async getAllActs(): Promise<Act[]> {
     const q = query(this.actsCollection, orderBy('name')); // Assuming 'name' or some order
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await runInInjectionContext(this.injector, () => getDocs(q));
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Act));
   }
 }

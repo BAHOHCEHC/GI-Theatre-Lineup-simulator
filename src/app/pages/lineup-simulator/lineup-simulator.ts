@@ -7,7 +7,7 @@ import {
   SeasonService,
   ActModsService,
 } from '@shared/services/_index';
-import { Character, ElementTypeName, Enemy, Mode, Season_details } from '@models/models';
+import { Act, Character, ElementTypeName, Enemy, Mode, Season_details } from '@models/models';
 import { CharacterStore, LineupStore } from '@store/_index';
 import { sortCharacters } from '@utils/sorting-characters';
 import { SeasonCharactersModal } from '@core/components/_index';
@@ -76,7 +76,6 @@ export class LineupSimulator implements OnInit {
     return sortCharacters(chars);
   });
 
-  // Opening characters with energy state
   readonly openingCharacters = computed(() => {
     const opening = this.seasonDetails().opening_characters || [];
     if (opening.length === 0) return [];
@@ -150,7 +149,52 @@ export class LineupSimulator implements OnInit {
     return acts.filter((a) => a.type === 'Arcana_fight').sort((a, b) => a.name - b.name);
   });
 
-  async ngOnInit() {
+  /**
+   * Performance optimization: Pre-resolve character objects for each act placement
+   */
+  public resolvedPlacements = computed<Record<string, Character[]>>(() => {
+    const placements = this.store.placements();
+    const allChars = this.characterStore.allCharacters();
+    const resolved: Record<string, Character[]> = {};
+
+    Object.keys(placements).forEach((actId) => {
+      const ids = placements[actId] || [];
+      resolved[actId] = ids
+        .map((id) => allChars.find((c) => c.id === id))
+        .filter((c): c is Character => !!c);
+    });
+
+    return resolved;
+  });
+
+  /**
+   * Performance optimization: Pre-calculate enemies for each act based on mode
+   */
+  public actEnemiesMap = computed<Record<string, Enemy[]>>(() => {
+    const mode = this.activeMode();
+    const acts = mode?.chambers || [];
+    const map: Record<string, Enemy[]> = {};
+
+    acts.forEach((act) => {
+      if (act.type === 'Variation_fight') {
+        const enemies: Enemy[] = [];
+        if (act.variations) {
+          act.variations.forEach((v) => {
+            if (v.waves?.[0]?.included_enemy?.[0]) {
+              enemies.push(v.waves[0].included_enemy[0]);
+            }
+          });
+        }
+        map[act.id] = enemies;
+      } else {
+        map[act.id] = act.enemy_selection || [];
+      }
+    });
+
+    return map;
+  });
+
+  public async ngOnInit(): Promise<void> {
     this.loading.set(true);
     // Init services
 
@@ -178,20 +222,28 @@ export class LineupSimulator implements OnInit {
     // Fetch generic Acts structure to ensure we have all acts (e.g. name, type)
     const allActs = await this.seasonService.getAllActs();
     if (details) {
-      if (details.acts && details.acts.length > 0) {
-        // Merge saved details with fresh Act definitions
-        const mergedActs = allActs.map((dbAct) => {
-          const savedAct = details.acts.find((a) => a.id === dbAct.id);
-          if (savedAct) {
-            return { ...dbAct, ...savedAct };
-          }
-          return dbAct;
-        });
-        this.seasonDetails.set({ ...details, acts: mergedActs });
-      } else {
-        // Details exist but no acts saved, use allActs
-        this.seasonDetails.update((s) => ({ ...details, acts: allActs }));
-      }
+      // Merge saved details with fresh Act definitions
+      const mergedActs = allActs.map((dbAct) => {
+        const savedAct = details.acts?.find((a) => a.id === dbAct.id);
+        if (savedAct) {
+          // MERGE POLICY: Use master dbAct for structure and variations, 
+          // but keep user-specific state from savedAct if needed.
+          return { 
+            ...dbAct, 
+            ...savedAct, 
+            // Force keep variations from master DB if they exist there
+            variations: (dbAct.variations && dbAct.variations.length > 0) 
+              ? dbAct.variations 
+              : (savedAct.variations || [])
+          };
+        }
+        return dbAct;
+      });
+      // Correctly set season details with merged acts or fresh acts if needed
+      this.seasonDetails.set({ 
+        ...details, 
+        acts: mergedActs.length > 0 ? mergedActs : allActs 
+      });
     } else {
       // New season setup
       this.seasonDetails.update((s) => ({ ...s, acts: allActs }));
@@ -207,38 +259,25 @@ export class LineupSimulator implements OnInit {
     return `assets/images/ElementType_${type}.png`;
   }
 
-  onModeChange(event: Event) {
+  public onModeChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const modeId = select.value;
     this.store.setActiveMode(modeId);
   }
 
-  public getActEnemies(act: any): Enemy[] {
-    // using any for Act temporarily if import needed or use Act type
-    if (!act) return [];
-
-    // Logic: if Variation_fight -> show first monster from variations -> waves -> included_enemy
-    // If it's Variation_fight, we look at variations.
-    if (act.type === 'Variation_fight') {
-      const enemies: Enemy[] = [];
-      if (act.variations) {
-        for (const v of act.variations) {
-          if (v.waves && v.waves.length > 0) {
-            const w = v.waves[0];
-            if (w.included_enemy && w.included_enemy.length > 0) {
-              enemies.push(w.included_enemy[0]);
-            }
-          }
-        }
-      }
-      return enemies;
-    } else {
-      // For others, use enemy_selection?
-      if (act.enemy_selection && act.enemy_selection.length > 0) {
-        return act.enemy_selection;
-      }
-      return [];
+  public getActDisplayName(act: Act): string {
+    const isHardMode = this.activeMode()?.name === 'Hard mode';
+    if (isHardMode && act.name === 10) {
+      return 'Act 8';
     }
+    return `Act ${act.name}`;
+  }
+
+  /**
+   * @deprecated Use actEnemiesMap() in template for better performance
+   */
+  public getActEnemies(act: Act): Enemy[] {
+    return this.actEnemiesMap()[act.id] || [];
   }
 
   public isEnemyActive(actId: string, index: number): boolean {
@@ -248,39 +287,36 @@ export class LineupSimulator implements OnInit {
     return selectedIndex === index;
   }
 
-  public onSelectEnemy(actId: string, index: number) {
+  public onSelectEnemy(actId: string, index: number): void {
     this.store.selectEnemy(actId, index);
   }
 
+  /**
+   * @deprecated Use resolvedPlacements() in template for better performance
+   */
   public getPlacedCharacters(actId: string): Character[] {
-    const placements = this.store.placements();
-    const charIds = placements[actId] || [];
-    if (charIds.length === 0) return [];
-
-    // Resolve chars from GLOBAL store to ensure we find Opening characters (who aren't in 'selected')
-    const all = this.characterStore.allCharacters();
-    return charIds.map((id) => all.find((c) => c.id === id)).filter((c) => !!c) as Character[];
+    return this.resolvedPlacements()[actId] || [];
   }
 
   // --- Modal Logic ---
-  isModalOpen = signal(false);
+  public isModalOpen = signal(false);
 
-  openAlternateCastModal() {
+  public openAlternateCastModal(): void {
     this.isModalOpen.set(true);
   }
 
-  closeModal() {
+  public closeModal(): void {
     this.isModalOpen.set(false);
   }
 
-  onSaveAlternateCast(selectedChars: Character[]) {
+  public onSaveAlternateCast(selectedChars: Character[]): void {
     this.store.updateSelectedCharacters(selectedChars.map((c) => c.id));
     this.closeModal();
   }
 
   // --- Drag & Drop ---
 
-  onDragStart(event: DragEvent, char: Character) {
+  public onDragStart(event: DragEvent, char: Character): void {
     if (event.dataTransfer) {
       event.dataTransfer.setData('text/plain', char.id);
       event.dataTransfer.effectAllowed = 'copy';
@@ -292,14 +328,14 @@ export class LineupSimulator implements OnInit {
     }
   }
 
-  onDragOver(event: DragEvent) {
+  public onDragOver(event: DragEvent): void {
     event.preventDefault(); // Allow drop
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'copy';
     }
   }
 
-  onDrop(event: DragEvent, actId: string) {
+  public onDrop(event: DragEvent, actId: string): void {
     event.preventDefault();
     if (event.dataTransfer) {
       const charId = event.dataTransfer.getData('text/plain');
@@ -309,11 +345,11 @@ export class LineupSimulator implements OnInit {
     }
   }
 
-  onRemoveCharacter(actId: string, charId: string) {
+  public onRemoveCharacter(actId: string, charId: string): void {
     this.store.removeCharacter(actId, charId);
   }
 
-  async saveConfiguration() {
+  public async saveConfiguration(): Promise<void> {
     try {
       // Даємо Angular домалювати DOM
       await new Promise((r) => setTimeout(r, 50));
@@ -336,7 +372,7 @@ export class LineupSimulator implements OnInit {
     }
   }
 
-  private downloadImage(dataUrl: string, fileName: string) {
+  private downloadImage(dataUrl: string, fileName: string): void {
     const link = document.createElement('a');
     link.href = dataUrl;
     link.download = fileName;
@@ -352,19 +388,31 @@ export class LineupSimulator implements OnInit {
     }
 
     const id = typeof item === 'string' ? item : item.id;
+    const enemyData = this.enemiesDataMap().get(id);
 
     return (
       this.charactersMap().get(id) ||
-      this.enemiesMap().get(id) ||
+      enemyData?.avatarUrl ||
       'assets/images/avatar_placeholder.png'
     );
+  }
+
+  public resolveEnemyName(item: string | Character | Enemy | null | undefined): string {
+    if (!item) return 'Unknown';
+
+    if (typeof item !== 'string' && item.name) {
+      return item.name;
+    }
+
+    const id = typeof item === 'string' ? item : item.id;
+    return this.enemiesDataMap().get(id)?.name || 'Unknown';
   }
   // --- Helpers ---
   private readonly charactersMap = computed(
     () => new Map(this.characterStore.allCharacters().map((c) => [c.id, c.avatarUrl])),
   );
 
-  private enemiesMap = computed(
-    () => new Map(this.enemiesService.enemies().map((e) => [e.id, e.avatarUrl])),
+  private enemiesDataMap = computed(
+    () => new Map(this.enemiesService.enemies().map((e) => [e.id, e])),
   );
 }
