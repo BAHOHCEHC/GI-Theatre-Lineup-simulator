@@ -226,6 +226,30 @@ export class CharacterStore {
     );
   }
 
+  updateSelectedCharacters(charIds: string[]): void {
+    const all = this.allCharacters();
+    const current = this.selectedCharacters();
+    const newIds = new Set([...current.map((c) => c.id), ...charIds]);
+    const selected = all.filter((c) => newIds.has(c.id));
+    this.selectedCharacters.set(selected);
+    this.saveToLocalStorage();
+  }
+
+  clearSelectedCharacters(charIds?: string[]): void {
+    if (charIds) {
+      const toRemove = new Set(charIds);
+      const next = this.selectedCharacters().filter((c) => !toRemove.has(c.id));
+      this.selectedCharacters.set(next);
+    } else {
+      this.selectedCharacters.set([]);
+    }
+    this.saveToLocalStorage();
+  }
+
+  clearActiveModeCharacters(): void {
+    this.clearSelectedCharacters();
+  }
+
   isSelected(char: Character) {
     return this.selectedCharacters().some((c) => c.id === char.id);
   }

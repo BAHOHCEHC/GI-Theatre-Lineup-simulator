@@ -5,7 +5,7 @@
   @for (c of visibleCharacters(); track c.id) {
     <button
       class="char"
-      [class.dimmed]="hasSelection() && !isSelected(c)"
+      [class.dimmed]="!isSelected(c)"
       [class.selected]="isSelected(c)"
       (click)="toggle(c)"
     >
@@ -35,7 +35,30 @@
         />
       }
     </button>
+
+    
   } @empty {
     <div class="empty-state">No characters to display by this filter.</div>
   }
 </div>
+
+@if (visibleCharacters().length > 0) {
+  <div class="character-grid__toolbar">
+    <button
+      type="button"
+      class="btn primary"
+      [class.dimmed]="isAllVisibleSelected()"
+      (click)="onSelectAll()"
+    >
+      Select all
+    </button>
+    <button
+      type="button"
+      class="btn danger"
+      [class.dimmed]="isNoneVisibleSelected()"
+      (click)="onClearAll()"
+    >
+      Clear all
+    </button>
+  </div>
+}

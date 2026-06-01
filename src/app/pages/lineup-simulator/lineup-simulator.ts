@@ -201,7 +201,7 @@ export class LineupSimulator implements OnInit {
     // Load chars - Optimization: use store if available
     // Load chars - Always re-validate with server in background
     this.characterService.getAllCharacters().then(chars => {
-       this.characterStore.setCharacters(chars);
+      this.characterStore.setCharacters(chars);
     });
     // Load modes
     const modes = await this.actModsService.getAllModes();
@@ -228,21 +228,21 @@ export class LineupSimulator implements OnInit {
         if (savedAct) {
           // MERGE POLICY: Use master dbAct for structure and variations, 
           // but keep user-specific state from savedAct if needed.
-          return { 
-            ...dbAct, 
-            ...savedAct, 
+          return {
+            ...dbAct,
+            ...savedAct,
             // Force keep variations from master DB if they exist there
-            variations: (dbAct.variations && dbAct.variations.length > 0) 
-              ? dbAct.variations 
+            variations: (dbAct.variations && dbAct.variations.length > 0)
+              ? dbAct.variations
               : (savedAct.variations || [])
           };
         }
         return dbAct;
       });
       // Correctly set season details with merged acts or fresh acts if needed
-      this.seasonDetails.set({ 
-        ...details, 
-        acts: mergedActs.length > 0 ? mergedActs : allActs 
+      this.seasonDetails.set({
+        ...details,
+        acts: mergedActs.length > 0 ? mergedActs : allActs
       });
     } else {
       // New season setup
@@ -349,24 +349,71 @@ export class LineupSimulator implements OnInit {
     this.store.removeCharacter(actId, charId);
   }
 
+  public clearAllCharacters(): void {
+    this.store.clearActiveModeCharacters();
+  }
+
   public async saveConfiguration(): Promise<void> {
     try {
-      // Даємо Angular домалювати DOM
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 100)); // трохи більше часу
 
       const element = this.screenshotRoot.nativeElement;
 
+      // Зберігаємо оригінальні стилі
+      const originalTransform = element.style.transform;
+      const originalTransformOrigin = element.style.transformOrigin;
+
+      // Скидаємо transform перед скріншотом
+      element.style.transform = 'none';
+      element.style.transformOrigin = 'top left';
+
       const canvas = await html2canvas(element, {
-        backgroundColor: '#0b0e14', // або null для прозорого
-        scale: Math.min(window.devicePixelRatio || 1, 2), // Обмежуємо scale до 2 для коректного рендерингу на 2K+ екранах
-        useCORS: true, // важливо для картинок
+        backgroundColor: '#0b0e14',
+        scale: 1, // фіксований scale
+        useCORS: true,
         logging: false,
+        allowTaint: false,
+        imageTimeout: 15000,
+        onclone: (clonedDoc) => {
+          // Фіксуємо всі img у клоні — запобігаємо subpixel зміщенню
+          const imgs = clonedDoc.querySelectorAll<HTMLImageElement>(
+            '.act-section-enemy img, .char-mini-card img'
+          );
+          imgs.forEach((img) => {
+            img.style.imageRendering = 'pixelated';
+            img.style.transform = 'none';
+          });
+
+          // Фіксуємо enemy секції
+          const enemySections = clonedDoc.querySelectorAll<HTMLElement>(
+            '.act-section-enemy'
+          );
+          enemySections.forEach((el) => {
+            el.style.overflow = 'visible';
+          });
+        },
       });
 
-      const image = canvas.toDataURL('image/png');
-      const modeName = this.activeMode()?.name || 'Unknown';
+      // Відновлюємо стилі
+      element.style.transform = originalTransform;
+      element.style.transformOrigin = originalTransformOrigin;
 
+      // Якщо треба вищий resolution — масштабуємо canvas вручну
+      const targetScale = Math.min(window.devicePixelRatio || 1, 2);
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = canvas.width * targetScale;
+      finalCanvas.height = canvas.height * targetScale;
+
+      const ctx = finalCanvas.getContext('2d')!;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.scale(targetScale, targetScale);
+      ctx.drawImage(canvas, 0, 0);
+
+      const image = finalCanvas.toDataURL('image/png');
+      const modeName = this.activeMode()?.name || 'Unknown';
       this.downloadImage(image, `lineup-config[${modeName}].png`);
+
     } catch (err) {
       console.error('Screenshot failed', err);
     }

@@ -37,13 +37,34 @@ export class CharacterGridComponent {
 
   readonly hasSelection = computed(() => this.characterStore.hasSelection());
 
+  public readonly isAllVisibleSelected = computed<boolean>(() => {
+    const visible = this.visibleCharacters();
+    if (visible.length === 0) return false;
+    return visible.every((c) => this.isSelected(c));
+  });
+
+  public readonly isNoneVisibleSelected = computed<boolean>(() => {
+    const visible = this.visibleCharacters();
+    return visible.every((c) => !this.isSelected(c));
+  });
+
   now = Date.now();
 
-  toggle(char: Character) {
+  public toggle(char: Character): void {
     this.characterStore.toggleCharacter(char);
   }
 
-  isSelected(char: Character) {
+  public isSelected(char: Character): boolean {
     return this.characterStore.isSelected(char);
+  }
+
+  public onSelectAll(): void {
+    const chars = this.visibleCharacters();
+    this.characterStore.updateSelectedCharacters(chars.map((c) => c.id));
+  }
+
+  public onClearAll(): void {
+    const chars = this.visibleCharacters();
+    this.characterStore.clearSelectedCharacters(chars.map((c) => c.id));
   }
 }

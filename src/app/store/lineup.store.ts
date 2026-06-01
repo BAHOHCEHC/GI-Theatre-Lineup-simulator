@@ -90,6 +90,25 @@ export class LineupStore {
         });
     }
 
+    /** Clear all characters and their configuration/placements/energy in active mode */
+    clearActiveModeCharacters(): void {
+        const modeId = this.activeModeId();
+        if (!modeId) return;
+
+        this.configurations.update(configs => {
+            const config = configs[modeId] || this.createEmptyConfig();
+            return {
+                ...configs,
+                [modeId]: {
+                    ...config,
+                    selectedCharacters: [],
+                    placements: {},
+                    energyState: {}
+                }
+            };
+        });
+    }
+
     /**
      * Register a character placement in an act
      * @param actId Act ID
