@@ -115,7 +115,6 @@ export class ActModal implements OnInit {
 
 
       if (type === 'Variation_fight') {
-        this.form.controls.options.controls.defeat.setValue(false, { emitEvent: false });
         this.form.controls.options.controls.defeat.disable({ emitEvent: false });
       } else {
         this.form.controls.options.controls.defeat.enable({ emitEvent: false });
@@ -267,6 +266,12 @@ export class ActModal implements OnInit {
 
       // Створюємо або оновлюємо акт
       const value = this.form.getRawValue();
+
+      // Визначаємо defeat: для Variation_fight завжди false
+      const defeatValue: boolean = type === 'Variation_fight'
+        ? false
+        : (value.options.defeat ? true : false);
+
       const act: Act = {
         id: this.actToEdit?.id ?? generateUUID(), // Використовуємо існуючий ID при редагуванні
         name: value.name ?? 1,
@@ -274,13 +279,13 @@ export class ActModal implements OnInit {
         options: {
           amount: value.options.amount ? true : false,
           timerEnable: value.options.timerEnable ? true : false,
-          defeat: value.options.defeat ? true : false,
+          defeat: defeatValue,
           special_type: value.options.special_type ? true : false,
         },
         variation_fight_settings: this.actToEdit?.variation_fight_settings || {} as Variation_fight,
         enemy_selection: this.actToEdit?.enemy_selection || [],
         variations: this.actToEdit?.variations || [],
-        enemy_options: {} as Enemy_options,
+        enemy_options: this.actToEdit?.enemy_options || {} as Enemy_options,
       };
 
       // Викликаємо відповідний метод сервісу
@@ -306,7 +311,6 @@ export class ActModal implements OnInit {
       this.isLoading.set(false);
     }
   }
-
 
   private async updateAct(act: Act): Promise<void> {
     try {

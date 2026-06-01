@@ -358,7 +358,7 @@ export class LineupSimulator implements OnInit {
 
       const canvas = await html2canvas(element, {
         backgroundColor: '#0b0e14', // або null для прозорого
-        scale: window.devicePixelRatio || 2, // якість
+        scale: Math.min(window.devicePixelRatio || 1, 2), // Обмежуємо scale до 2 для коректного рендерингу на 2K+ екранах
         useCORS: true, // важливо для картинок
         logging: false,
       });

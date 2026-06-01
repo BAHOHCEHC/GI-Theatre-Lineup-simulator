@@ -1,13 +1,19 @@
-import { signal, computed, Injectable, inject, effect } from '@angular/core';
+import { signal, computed, Injectable, inject, effect, InjectionToken } from '@angular/core';
 import { Act, Mode } from '../../models/models';
 import { IndexedDbUtil } from '@utils/indexed-db';
 import { ActModsService } from '@shared/services/_index';
+
+export const SKIP_ACT_MODES_LOAD = new InjectionToken<boolean>('SKIP_ACT_MODES_LOAD', {
+  providedIn: 'root',
+  factory: (): boolean => false,
+});
 
 @Injectable({
   providedIn: 'root',
 })
 export class ActModesStore {
   private actModsService = inject(ActModsService);
+  private skipLoad = inject(SKIP_ACT_MODES_LOAD);
   private _isProcessingActs = false;
   private _isProcessingModes = false;
 
@@ -17,6 +23,10 @@ export class ActModesStore {
   readonly modes = signal<Mode[]>([]);
 
   constructor() {
+    if (this.skipLoad) {
+      return;
+    }
+
     this.loadFromIndexedDb();
 
     // Listen for live updates

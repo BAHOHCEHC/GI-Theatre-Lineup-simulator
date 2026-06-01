@@ -8,6 +8,7 @@ import { ActModsService } from '@shared/services/_index';
 // Update imports to include Mode
 import { Act, Mode } from '@models/models';
 import { ConfirmModal } from '@core/components/_index';
+import { ActModesStore, SKIP_ACT_MODES_LOAD } from '@store/_index';
 
 @Component({
   selector: 'app-act-and-modes-editor',
@@ -19,6 +20,10 @@ import { ConfirmModal } from '@core/components/_index';
     ActModal,
     ModeModal,
     ConfirmModal
+  ],
+  providers: [
+    ActModesStore,
+    { provide: SKIP_ACT_MODES_LOAD, useValue: true }
   ],
   templateUrl: './act-and-modes-editor.html',
   styleUrls: ['./act-and-modes-editor.scss'],
