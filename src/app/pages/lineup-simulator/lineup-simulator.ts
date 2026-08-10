@@ -9,13 +9,15 @@ import {
 } from '@shared/services/_index';
 import { Act, Character, ElementTypeName, Enemy, Mode, Season_details } from '@models/models';
 import { CharacterStore, LineupStore } from '@store/_index';
+import { SeasonDetailsStore } from '@store/season-details.store';
 import { sortCharacters } from '@utils/sorting-characters';
 import { SeasonCharactersModal } from '@core/components/_index';
 import { ReactiveFormsModule } from '@angular/forms';
+import { JsonPipe } from '@angular/common';
 
 @Component({
   selector: 'app-lineup-simulator',
-  imports: [SeasonCharactersModal, ReactiveFormsModule],
+  imports: [SeasonCharactersModal, ReactiveFormsModule, JsonPipe],
   standalone: true,
   templateUrl: './lineup-simulator.html',
   styleUrl: './lineup-simulator.scss',
@@ -34,6 +36,7 @@ export class LineupSimulator implements OnInit {
 
   public readonly store = inject(LineupStore);
   public readonly characterStore = inject(CharacterStore);
+  private readonly seasonStore = inject(SeasonDetailsStore);
 
   public loading = signal(true);
 
@@ -96,7 +99,7 @@ export class LineupSimulator implements OnInit {
   });
 
   // --- State Signals ---
-  public seasonDetails = signal<Season_details>({
+  public seasonDetails = computed<Season_details>(() => this.seasonStore.seasonDetails() || {
     elemental_type_limided: [],
     opening_characters: [],
     special_guests: [],
@@ -124,12 +127,20 @@ export class LineupSimulator implements OnInit {
     () => new Set(this.seasonDetails().elemental_type_limided.map((e) => e.name)),
   );
 
+  public activeActs = computed<Act[]>(() => {
+    const modeActs = this.activeMode()?.chambers || [];
+    const detailsActs = this.seasonDetails().acts || [];
+    const detailsMap = new Map(detailsActs.map((act) => [act.id, act]));
+
+    return modeActs
+      .map((act) => detailsMap.get(act.id) || act)
+      .filter((act): act is Act => !!act)
+      .sort((a, b) => a.name - b.name);
+  });
+
   // Split acts for 2-column layout (Act 1-5 Left, Act 6-10 Right) + Arcana
   public nonArcanaActs = computed(() => {
-    const acts = this.activeMode()?.chambers || [];
-    return acts
-      .filter((a) => a.type !== 'Arcana_fight')
-      .sort((a, b) => a.name - b.name);
+    return this.activeActs().filter((a) => a.type !== 'Arcana_fight');
   });
 
   public leftActs = computed(() => {
@@ -145,8 +156,7 @@ export class LineupSimulator implements OnInit {
   });
 
   public arcanaActs = computed(() => {
-    const acts = this.activeMode()?.chambers || [];
-    return acts.filter((a) => a.type === 'Arcana_fight').sort((a, b) => a.name - b.name);
+    return this.activeActs().filter((a) => a.type === 'Arcana_fight');
   });
 
   /**
@@ -168,26 +178,29 @@ export class LineupSimulator implements OnInit {
   });
 
   /**
-   * Performance optimization: Pre-calculate enemies for each act based on mode
+   * Build enemy data directly from the live EnemiesService state for each render.
    */
   public actEnemiesMap = computed<Record<string, Enemy[]>>(() => {
-    const mode = this.activeMode();
-    const acts = mode?.chambers || [];
+    const acts = this.activeActs();
+    const liveEnemies = this.enemiesService.enemies();
+    const enemyMap = new Map(liveEnemies.map((enemy) => [enemy.id, enemy]));
     const map: Record<string, Enemy[]> = {};
+
+    const resolveEnemy = (enemy: Enemy) => enemyMap.get(enemy.id) || enemy;
 
     acts.forEach((act) => {
       if (act.type === 'Variation_fight') {
         const enemies: Enemy[] = [];
         if (act.variations) {
-          act.variations.forEach((v) => {
-            if (v.waves?.[0]?.included_enemy?.[0]) {
-              enemies.push(v.waves[0].included_enemy[0]);
+          act.variations.forEach((variation) => {
+            if (variation.waves?.[0]?.included_enemy?.[0]) {
+              enemies.push(resolveEnemy(variation.waves[0].included_enemy[0]));
             }
           });
         }
         map[act.id] = enemies;
       } else {
-        map[act.id] = act.enemy_selection || [];
+        map[act.id] = (act.enemy_selection || []).map(resolveEnemy);
       }
     });
 
@@ -217,37 +230,8 @@ export class LineupSimulator implements OnInit {
       else this.store.setActiveMode(this.store.activeModeId()!);
     }
 
-    // Load Season Details
-    const details = await this.seasonService.loadSeasonDetails();
-    // Fetch generic Acts structure to ensure we have all acts (e.g. name, type)
-    const allActs = await this.seasonService.getAllActs();
-    if (details) {
-      // Merge saved details with fresh Act definitions
-      const mergedActs = allActs.map((dbAct) => {
-        const savedAct = details.acts?.find((a) => a.id === dbAct.id);
-        if (savedAct) {
-          // MERGE POLICY: Use master dbAct for structure and variations, 
-          // but keep user-specific state from savedAct if needed.
-          return {
-            ...dbAct,
-            ...savedAct,
-            // Force keep variations from master DB if they exist there
-            variations: (dbAct.variations && dbAct.variations.length > 0)
-              ? dbAct.variations
-              : (savedAct.variations || [])
-          };
-        }
-        return dbAct;
-      });
-      // Correctly set season details with merged acts or fresh acts if needed
-      this.seasonDetails.set({
-        ...details,
-        acts: mergedActs.length > 0 ? mergedActs : allActs
-      });
-    } else {
-      // New season setup
-      this.seasonDetails.update((s) => ({ ...s, acts: allActs }));
-    }
+    // Load Season Details through the store so the view reacts to live updates
+    await this.seasonStore.loadDetailsIfNeeded();
 
     // Load enemies for lookups
     await this.enemiesService.loadEnemies();
@@ -277,7 +261,13 @@ export class LineupSimulator implements OnInit {
    * @deprecated Use actEnemiesMap() in template for better performance
    */
   public getActEnemies(act: Act): Enemy[] {
-    return this.actEnemiesMap()[act.id] || [];
+    const actEnemies = this.actEnemiesMap()[act.id] || [];
+    const liveEnemies = this.enemiesService.enemies();
+
+    return actEnemies.map((enemy) => {
+      const liveEnemy = liveEnemies.find((item) => item.id === enemy.id || item.name === enemy.name);
+      return liveEnemy || enemy;
+    });
   }
 
   public isEnemyActive(actId: string, index: number): boolean {
@@ -429,37 +419,35 @@ export class LineupSimulator implements OnInit {
   public resolveAvatarUrl(item: string | Character | Enemy | null | undefined): string {
     if (!item) return 'assets/images/avatar_placeholder.png';
 
-    // Priority: 1. Direct URL on object, 2. Map lookup by ID
-    if (typeof item !== 'string' && item.avatarUrl) {
-      return item.avatarUrl;
+    const id = typeof item === 'string' ? item : item.id;
+    const characterData = this.charactersMap().get(id);
+    const liveEnemy = this.enemiesService.enemies().find((enemy) => enemy.id === id || enemy.name === (typeof item !== 'string' ? item.name : undefined));
+
+    if (liveEnemy?.avatarUrl) {
+      return liveEnemy.avatarUrl;
     }
 
-    const id = typeof item === 'string' ? item : item.id;
-    const enemyData = this.enemiesDataMap().get(id);
+    if (characterData) {
+      return characterData;
+    }
 
-    return (
-      this.charactersMap().get(id) ||
-      enemyData?.avatarUrl ||
-      'assets/images/avatar_placeholder.png'
-    );
+    return (typeof item !== 'string' ? item.avatarUrl : undefined) || 'assets/images/avatar_placeholder.png';
   }
 
   public resolveEnemyName(item: string | Character | Enemy | null | undefined): string {
     if (!item) return 'Unknown';
 
-    if (typeof item !== 'string' && item.name) {
-      return item.name;
+    const id = typeof item === 'string' ? item : item.id;
+    const liveEnemy = this.enemiesService.enemies().find((enemy) => enemy.id === id || enemy.name === (typeof item !== 'string' ? item.name : undefined));
+
+    if (liveEnemy?.name) {
+      return liveEnemy.name;
     }
 
-    const id = typeof item === 'string' ? item : item.id;
-    return this.enemiesDataMap().get(id)?.name || 'Unknown';
+    return (typeof item !== 'string' ? item.name : undefined) || 'Unknown';
   }
   // --- Helpers ---
   private readonly charactersMap = computed(
     () => new Map(this.characterStore.allCharacters().map((c) => [c.id, c.avatarUrl])),
-  );
-
-  private enemiesDataMap = computed(
-    () => new Map(this.enemiesService.enemies().map((e) => [e.id, e])),
   );
 }

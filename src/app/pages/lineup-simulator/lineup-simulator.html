@@ -205,7 +205,7 @@
                   <div class="act-section-enemy">
                     <!-- Element requirements or what? Design shows element icons or boss icons? -->
                     <!-- Design shows some enemies. -->
-                    @for (enemy of getActEnemies(act); track $index) {
+                    @for (enemy of getActEnemies(act); track enemy.id) {
                       <img
                         [src]="resolveAvatarUrl(enemy)"
                         [alt]="resolveEnemyName(enemy)"
@@ -282,7 +282,7 @@
                 </div>
                 <div class="act-section-inner">
                   <div class="act-section-enemy">
-                    @for (enemy of getActEnemies(act); track $index) {
+                    @for (enemy of getActEnemies(act); track enemy.id) {
                       <img
                         [src]="resolveAvatarUrl(enemy)"
                         [alt]="resolveEnemyName(enemy)"
@@ -354,13 +354,14 @@
                   <div class="act-section-name">
                     @if (act.type === 'Arcana_fight') {
                       <h3>Arcana {{ act.name }}</h3>
+                      <p>Arcana {{ act | json}}</p>
                     } @else {
                       <h3>Act {{ act.name }}</h3>
                     }
                   </div>
                   <div class="act-section-inner">
                     <div class="act-section-enemy">
-                      @for (enemy of getActEnemies(act); track $index) {
+                      @for (enemy of getActEnemies(act); track enemy.id) {
                         <img
                           [src]="resolveAvatarUrl(enemy)"
                           [alt]="resolveEnemyName(enemy)"
