@@ -15,7 +15,7 @@
             [class.active]="selectedElement() === el"
             (click)="selectElement(el)"
           >
-            <img [src]="'/assets/images/ElementType_' + el + '.png'" [alt]="el" />
+            <img [src]="'assets/images/ElementType_' + el + '.png'" [alt]="el" />
           </button>
         }
       </div>
@@ -30,7 +30,7 @@
         >
           <div class="preview-section-element-image">
             <img
-              [src]="'/assets/images/ElementType_' + selectedElement() + '.png'"
+              [src]="'assets/images/ElementType_' + selectedElement() + '.png'"
               [alt]="selectedElement()"
             />
           </div>

@@ -77,6 +77,6 @@ export class YourCharacters implements OnInit {
   }
 
   getElementIconPath(type: string): string {
-    return `/assets/images/ElementType_${type}.png`;
+    return `assets/images/ElementType_${type}.png`;
   }
 }

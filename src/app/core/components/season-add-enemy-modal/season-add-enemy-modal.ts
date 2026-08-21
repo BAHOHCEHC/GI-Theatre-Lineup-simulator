@@ -124,7 +124,7 @@ export class SeasonAddEnemyModal implements OnInit {
   }
 
   public getElementIconPath(type: ElementTypeName): string {
-    return `/assets/images/ElementType_${type}.png`;
+    return `assets/images/ElementType_${type}.png`;
   }
 
   public onSave(): void {
