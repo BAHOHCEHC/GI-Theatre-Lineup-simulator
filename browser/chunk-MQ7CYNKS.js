@@ -1,0 +1,1 @@
+function t(){return typeof crypto<"u"&&"randomUUID"in crypto?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,e=>{let x;if(typeof crypto<"u"&&"getRandomValues"in crypto){let r=new Uint8Array(1);crypto.getRandomValues(r),x=r[0]%16}else x=Math.random()*16|0;return(e==="x"?x:x&3|8).toString(16)})}export{t as a};
